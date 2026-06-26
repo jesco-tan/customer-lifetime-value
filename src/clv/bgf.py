@@ -1,0 +1,182 @@
+"""BG/NBD purchase model + Gamma-Gamma spend model wrappers.
+
+Includes disaggregated CLV analysis by acquisition channel and campaign ROI
+estimation for the Thornbury & Co. win-back budget allocation decision.
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+import numpy as np
+from lifetimes import BetaGeoFitter, GammaGammaFitter
+
+
+def fit_bgnbd(summary: pd.DataFrame, penalizer_coef: float = 0.001) -> BetaGeoFitter:
+    bgf = BetaGeoFitter(penalizer_coef=penalizer_coef)
+    bgf.fit(summary["frequency"], summary["recency"], summary["T"])
+    return bgf
+
+
+def fit_gamma_gamma(summary: pd.DataFrame, penalizer_coef: float = 0.001) -> GammaGammaFitter:
+    repeat = summary[summary["frequency"] > 0]
+    ggf = GammaGammaFitter(penalizer_coef=penalizer_coef)
+    ggf.fit(repeat["frequency"], repeat["monetary_value"])
+    return ggf
+
+
+def predict_clv(
+    bgf: BetaGeoFitter,
+    ggf: GammaGammaFitter,
+    summary: pd.DataFrame,
+    horizon_days: int = 365,
+    discount_rate: float = 0.01,
+) -> pd.DataFrame:
+    """Return summary with appended predicted_clv, predicted_purchases, prob_alive."""
+    df = summary.copy()
+
+    df["predicted_purchases"] = bgf.conditional_expected_number_of_purchases_up_to_time(
+        horizon_days,
+        df["frequency"],
+        df["recency"],
+        df["T"],
+    )
+
+    df["prob_alive"] = bgf.conditional_probability_alive(
+        df["frequency"],
+        df["recency"],
+        df["T"],
+    )
+
+    repeat_mask = df["frequency"] > 0
+    df.loc[repeat_mask, "predicted_clv"] = ggf.customer_lifetime_value(
+        bgf,
+        df.loc[repeat_mask, "frequency"],
+        df.loc[repeat_mask, "recency"],
+        df.loc[repeat_mask, "T"],
+        df.loc[repeat_mask, "monetary_value"],
+        time=horizon_days / 30,
+        discount_rate=discount_rate,
+        freq="D",
+    )
+    df.loc[~repeat_mask, "predicted_clv"] = 0.0
+
+    return df
+
+
+def clv_summary_stats(clv_df: pd.DataFrame) -> dict:
+    vals = clv_df["predicted_clv"].dropna()
+    return {
+        "mean_clv": round(float(vals.mean()), 2),
+        "median_clv": round(float(vals.median()), 2),
+        "p90_clv": round(float(vals.quantile(0.90)), 2),
+        "total_predicted_revenue": round(float(vals.sum()), 2),
+        "pct_alive": round(float((clv_df["prob_alive"] > 0.5).mean() * 100), 1),
+    }
+
+
+def clv_by_channel(clv_df: pd.DataFrame, channel_map: pd.Series) -> pd.DataFrame:
+    """Aggregate predicted CLV and P(alive) statistics per acquisition channel.
+
+    Parameters
+    ----------
+    clv_df : DataFrame indexed by Customer ID, output of predict_clv()
+    channel_map : Series mapping Customer ID → Channel
+
+    Returns
+    -------
+    DataFrame with one row per channel and columns:
+    n_customers, mean_clv, median_clv, p90_clv, total_clv,
+    mean_prob_alive, pct_alive, mean_predicted_purchases
+    """
+    df = clv_df.copy()
+    df["Channel"] = df.index.map(channel_map)
+
+    result = (
+        df.groupby("Channel")
+        .agg(
+            n_customers=("predicted_clv", "count"),
+            mean_clv=("predicted_clv", "mean"),
+            median_clv=("predicted_clv", "median"),
+            p90_clv=("predicted_clv", lambda x: x.quantile(0.90)),
+            total_clv=("predicted_clv", "sum"),
+            mean_monetary=("monetary_value", "mean"),
+            mean_prob_alive=("prob_alive", "mean"),
+            pct_alive=("prob_alive", lambda x: round((x > 0.5).mean() * 100, 1)),
+            mean_predicted_purchases=("predicted_purchases", "mean"),
+        )
+        .round(2)
+        .reset_index()
+    )
+    return result
+
+
+def holdout_comparison(
+    bgf: BetaGeoFitter,
+    cal_summary: pd.DataFrame,
+    hold_df: pd.DataFrame,
+    cal_end: pd.Timestamp,
+    obs_end: pd.Timestamp,
+) -> pd.DataFrame:
+    """Compare BG/NBD predicted purchases vs actual purchases in holdout period.
+
+    Returns a DataFrame indexed by Customer ID with columns:
+    predicted_purchases_holdout, actual_purchases_holdout, error
+    """
+    holdout_days = (obs_end - cal_end).days
+
+    predicted = bgf.conditional_expected_number_of_purchases_up_to_time(
+        holdout_days,
+        cal_summary["frequency"],
+        cal_summary["recency"],
+        cal_summary["T"],
+    )
+
+    actual = hold_df.groupby("Customer ID")["Invoice"].nunique()
+    actual = actual.reindex(cal_summary.index, fill_value=0)
+
+    df = pd.DataFrame({
+        "predicted_purchases_holdout": predicted,
+        "actual_purchases_holdout": actual,
+    })
+    df["error"] = df["predicted_purchases_holdout"] - df["actual_purchases_holdout"]
+    return df
+
+
+def campaign_roi_by_channel(
+    clv_df: pd.DataFrame,
+    channel_map: pd.Series,
+    cost_per_contact: float,
+    response_rates: dict[str, float],
+) -> pd.DataFrame:
+    """Estimate win-back campaign ROI per channel.
+
+    ROI = (mean_clv * pct_alive * response_rate - cost_per_contact) / cost_per_contact
+    Positive ROI means each £1 spent returns more than £1 in predicted CLV.
+
+    Parameters
+    ----------
+    response_rates : dict mapping channel name → estimated response rate (0-1)
+    """
+    channel_stats = clv_by_channel(clv_df, channel_map)
+
+    rows = []
+    for _, row in channel_stats.iterrows():
+        ch = row["Channel"]
+        rr = response_rates.get(ch, 0.05)
+        expected_return = row["mean_clv"] * (row["pct_alive"] / 100) * rr
+        net_per_contact = expected_return - cost_per_contact
+        roi = net_per_contact / cost_per_contact if cost_per_contact > 0 else np.nan
+        max_contactable = int(row["n_customers"])
+        rows.append({
+            "Channel": ch,
+            "n_customers": max_contactable,
+            "response_rate": rr,
+            "mean_clv": row["mean_clv"],
+            "pct_alive": row["pct_alive"],
+            "expected_return_per_contact": round(expected_return, 2),
+            "cost_per_contact": cost_per_contact,
+            "net_per_contact": round(net_per_contact, 2),
+            "roi": round(roi, 2),
+        })
+
+    return pd.DataFrame(rows).sort_values("roi", ascending=False).reset_index(drop=True)

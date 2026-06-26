@@ -1,0 +1,42 @@
+scenario:
+  name: "Thornbury & Co."
+  description: "UK online gift & home accessories retailer, 2010-2011"
+  currency: "GBP"
+  channels: ["Enthusiast", "Mainstream", "Deal-Seeker"]
+
+data:
+  synthetic_n_customers: 2500
+  observation_start: "2010-01-01"
+  observation_end: "2011-12-09"
+  calibration_months: 9          # not used directly, holdout_months drives cal_end
+  holdout_months: 3              # cal_end = obs_end - holdout_months
+  seed: 42
+
+cohorts:
+  frequency: "M"                 # cohort grouping: M=monthly
+  min_cohort_size: 15            # drop tiny cohorts from heatmap
+
+rfm:
+  recency_bins: 5
+  frequency_bins: 5
+  monetary_bins: 5
+  n_clusters: 5                  # K-Means on UMAP projection
+
+clv:
+  horizon_days: 365              # 12-month prediction window
+  discount_rate: 0.01            # monthly discount rate
+  penalizer_coef: 0.001          # L2 regularisation for BG/NBD and GGF
+
+campaign:
+  win_back_budget: 500000        # total £ available for win-back programme
+  cost_per_contact: 3.50         # cost per outreach (email + fulfilment)
+  response_rates:                # estimated channel response rates
+    Enthusiast: 0.18
+    Mainstream: 0.09
+    Deal-Seeker: 0.04
+
+guardrail:
+  min_month1_retention: 0.20    # Month-1 cohort retention must not fall below 20%
+
+streamlit:
+  port: 8501
