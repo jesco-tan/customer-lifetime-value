@@ -7,7 +7,7 @@
   "calibration_end": "2011-09-09",
   "holdout_days": 91,
   "clv_stats": {
-    "mean_clv": 143.0,
+    "mean_clv": 143,
     "median_clv": 63.25,
     "p90_clv": 376.9,
     "total_predicted_revenue": 357493.42,
@@ -30,7 +30,7 @@
     "Deal-Seeker": {
       "n_customers": 646,
       "mean_clv": 48.6,
-      "median_clv": 0.0,
+      "median_clv": 0,
       "p90_clv": 155.73,
       "total_clv": 31394.41,
       "mean_prob_alive": 0.89,
@@ -61,21 +61,26 @@
     "Mainstream": 0.1295,
     "Overall": 0.1612
   },
-  "campaign_roi_by_channel": {
+  "schema_version": 2,
+  "evidence_status": "synthetic demonstration; narrative and field definitions corrected 2026-11-03; no model refit",
+  "campaign_heuristic_by_channel": {
     "Enthusiast": {
-      "roi": 10.0,
-      "net_per_contact": 35.0,
-      "expected_return_per_contact": 38.5
+      "net_per_contact": 35,
+      "heuristic_score": 10,
+      "revenue_proxy_per_contact": 38.5
     },
     "Mainstream": {
-      "roi": 1.61,
       "net_per_contact": 5.63,
-      "expected_return_per_contact": 9.13
+      "heuristic_score": 1.61,
+      "revenue_proxy_per_contact": 9.13
     },
     "Deal-Seeker": {
-      "roi": -0.49,
       "net_per_contact": -1.7,
-      "expected_return_per_contact": 1.8
+      "heuristic_score": -0.49,
+      "revenue_proxy_per_contact": 1.8
     }
-  }
+  },
+  "value_target": "nominal annual discounted revenue; exact executed horizon not verified",
+  "retention_definition": "unweighted mean of available cohort cells; observed zeros omitted by current implementation",
+  "single_purchase_value_policy": "forced zero"
 }

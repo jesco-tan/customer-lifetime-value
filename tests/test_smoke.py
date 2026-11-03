@@ -6,7 +6,7 @@ import pytest
 from src.clv.etl import load_synthetic, split_calibration_holdout, get_customer_channels
 from src.clv.rfm import compute_rfm, segment_summary, rfm_channel_profile
 from src.clv.cohorts import build_retention_matrix, retention_by_channel, month1_retention_summary
-from src.clv.bgf import clv_by_channel, campaign_roi_by_channel
+from src.clv.bgf import clv_by_channel, campaign_heuristic_by_channel
 
 
 @pytest.fixture
@@ -135,13 +135,15 @@ def test_clv_by_channel(transactions):
     assert set(result["Channel"]).issubset({"Enthusiast", "Mainstream", "Deal-Seeker"})
 
 
-def test_campaign_roi_by_channel(transactions):
+def test_campaign_heuristic_by_channel(transactions):
     clv_df, ch = _make_mock_clv_df(transactions)
-    roi = campaign_roi_by_channel(
+    roi = campaign_heuristic_by_channel(
         clv_df, ch,
         cost_per_contact=3.50,
         response_rates={"Enthusiast": 0.18, "Mainstream": 0.09, "Deal-Seeker": 0.04},
     )
-    assert "roi" in roi.columns
+    assert "heuristic_score" in roi.columns
+    assert "roi" not in roi.columns
+    assert "revenue_proxy_per_contact" in roi.columns
     assert "net_per_contact" in roi.columns
     assert len(roi) == 3

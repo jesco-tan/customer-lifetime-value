@@ -1,196 +1,63 @@
 ---
-title: "When the M score lies: probabilistic CLV and the win-back budget decision"
-publishedAt: "2026-06-24"
-summary: "BG/NBD + Gamma-Gamma CLV model on a three-channel UK retailer: Enthusiast CLV is 5.3× Deal-Seeker despite Deal-Seekers scoring highest on RFM Monetary. Win-back ROI for Deal-Seekers is −0.49×. The analysis resolves the conflict and allocates a £500K budget."
-shortsummary: "Probabilistic CLV resolves a conflict with RFM: Deal-Seekers have the highest M score but median CLV of £0 and negative win-back ROI."
-images:
-  - "/images/projects/customer-lifetime-value/rfm_vs_clv_tension.png"
-team:
-  - name: "Jesco Tan"
-    role: "Author"
-    avatar: "/images/avatar.jpg"
-    linkedIn: "https://www.linkedin.com/in/jesco-tan/"
-link: "https://github.com/jesco-tan/customer-lifetime-value"
+title: "Customer analytics on a synthetic retailer: cohorts, RFM and probabilistic value"
 ---
 
-## Why this line of work
+Thornbury & Co. is a fictional retailer scenario. I built a customer-analytics workflow using 2,500 generated customers, 9,632 invoices and 29,336 invoice line items. It includes RFM segmentation, cohort summaries, BG/NBD purchase predictions, a Gamma-Gamma spend model and a separate purchase-count holdout.
 
-I study **Engineering Systems and Design (ESD)** at **SUTD**. The pillar asks you to be explicit about actors, information, decisions, and consequence. Most customer analytics stops at a summary stat, average order value, segment label, churn rate. I wanted a project that runs from raw transactions all the way to a budget allocation with a defensible ROI number, and that surfaces the conflict when one analytical method contradicts another.
+The data are synthetic, not a real retailer's transaction log. The GBP500,000 budget, contact cost and response rates are assumed scenario inputs. No campaign budget was managed and no campaign returns were observed.
 
-The conflict here is real: **RFM Monetary ranking inverts the CLV ranking**. Customers acquired via flash sales rank first on M but last on predicted revenue. A team acting on M alone would spend the win-back budget in exactly the wrong order. The probabilistic CLV model resolves it, but only if you know where the tension lives.
+## What the generator assumes
 
----
+The generator assigns Enthusiast, Mainstream and Deal-Seeker labels, with different engagement distributions and parameters. A shared engagement variable drives purchase rates, basket sizes and dropout. This intentionally creates channel differences; the model does not discover causal effects of organic, search or flash-sale acquisition.
 
-## 1. The scenario and the decision
+An optional UCI Online Retail II loader exists, but the executed notebook records that its input file was absent and uses synthetic seed 42. The named channel results therefore belong to the generated scenario.
 
-**Why I built it.** I wanted to model what actually gets discussed in a commercial analytics review: not "which model has lower RMSE" but "how do we allocate this £500K budget across customer segments, and what happens if we get it wrong?" The scenario is Thornbury & Co., a UK gift and home accessories retailer with three identifiable acquisition channels, **Enthusiast** (organic, editorial), **Mainstream** (paid search, comparison), and **Deal-Seeker** (flash sale, coupon). The question before the model is straightforward: who is worth contacting?
+## Historical customer summaries
 
-**What it is.** End-to-end pipeline from raw transactions through cohort retention, RFM segmentation, BG/NBD and Gamma-Gamma models, holdout validation, and a channel-disaggregated win-back ROI calculation. A shared **latent engagement score** drives purchase rate, basket size, and churn probability simultaneously in the synthetic data generator, so the channel differences are mechanistically grounded rather than arbitrary. The notebook tells the story sequentially; REPORT.md is the analyst memo for a stakeholder; `scripts/generate_html_report.py` produces a 1.8 MB self-contained HTML with embedded charts and colour-coded alert boxes.
+RFM separates recency, purchase frequency and historical spend. In the saved notebook, Enthusiasts have the highest mean Monetary score, 3.55, compared with 2.79 for Deal-Seekers and 2.74 for Mainstream. Enthusiasts also have the highest predicted CLV. This run does not show a full inversion of the channel rankings.
 
-**Where the details live.** All logic is in `src/clv/`; the notebook imports from there. `outputs/` holds all committed figures and the `run_summary.json` that the HTML report and REPORT.md are derived from. The full methodology, parameter table, and channel-level evidence are in **[REPORT.md](REPORT.md)**. For exact CLV distributions and holdout diagnostics, open the repo.
+![Historical Monetary scores and predicted value for generated customer records](outputs/rfm_vs_clv_tension.png)
 
----
+Synthetic retailer scenario. The scatter compares different customer summaries, but it does not show the claimed full channel-rank inversion. Saved mean Monetary and predicted CLV both rank Enthusiasts highest.
 
-## 2. Cohort retention and the guardrail
+The saved cohort implementation reports mean month-1 rates of 31.02%, 12.95% and 4.51% across Enthusiast, Mainstream and Deal-Seeker cohorts, against an assumed 20% floor. These are averages over available cohort cells. The current implementation omits months with no repeat purchasers instead of retaining observed zeros, so denominator handling needs correction before substantive interpretation. These are not measured acquisition or retention efficiencies.
 
-**The aggregate number.** Monthly cohort × period retention matrix: what fraction of each cohort transacted in each subsequent month. Overall Month-1 retention is **16.1%**: below the 20% floor set before any modelling began.
+## Fitted models and a chronological holdout
 
-**The disaggregation.** Splitting by channel reveals that the aggregate is a blend of very different behaviours: Enthusiasts at **31.0%** (above guardrail), Mainstream at **13.0%** (breach), Deal-Seekers at **4.5%** (severe breach). Expanding the flash-sale channel acquires customers who look like a deal is running rather than customers who like the category.
+The notebook fits BG/NBD on records through 9 September 2011 and fits Gamma-Gamma on the 1,714 repeat customers in that calibration period. The following 91 days, through 9 December 2011, provide a separate purchase-count holdout. Saved holdout MAE is 0.4745 purchases per generated customer and signed bias is +0.0348.
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/month1_retention_by_channel.png"
-    alt="Month-1 retention by acquisition channel with 20% guardrail line"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    Month-1 retention by channel: Enthusiasts clear the 20% guardrail; Mainstream and Deal-Seekers breach it. Deal-Seeker retention of 4.5% means 1,000 acquired customers produce the retention equivalent of 45.
-  </figcaption>
-</figure>
+![Saved purchase-count holdout diagnostics for the synthetic retailer](outputs/holdout_validation.png)
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/retention_heatmap.png"
-    alt="Monthly cohort retention heatmap, all channels combined"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    Cohort retention heatmap: the diagonal cooling pattern is normal retail decay; the column of near-zero values flags the Deal-Seeker cohorts.
-  </figcaption>
-</figure>
+Synthetic retailer scenario. The notebook reports full-population holdout MAE 0.4745 and bias +0.0348. This figure trims customers above the 98th percentile of actual holdout purchases before plotting and calculating its displayed diagnostics. Purchase-count validation does not validate campaign incrementality or future spend.
 
----
+This time separation is an implemented validation achievement. It does not resolve every model assumption. The generator deliberately relates purchase frequency, spend and dropout through shared engagement, while standard BG/NBD and Gamma-Gamma specifications make independence assumptions about those quantities. Those assumptions need explicit checks and comparison with alternative models.
 
-## 3. The tension, M score vs predicted CLV
+Final value estimates use histories through 9 December 2011 and forecast beyond that date, using parameters fitted earlier. They are distinct from the September-origin purchase-count holdout and do not have a saved monetary holdout validation.
 
-**The conflict.** RFM assigns each customer an M score based on total historical spend. Deal-Seekers arrived via a promotional bundle; their first-purchase basket is large. They score in the top Monetary quintile. A team ranking customers by M for a win-back campaign would contact Deal-Seekers before Enthusiasts.
+## What the saved CLV estimates mean
 
-**Why M fails.** M measures what a customer *has* spent, not what they *will* spend. A £200 flash-sale order from a customer who churned immediately ranks above a customer spending £15/month reliably for two years. BG/NBD conditions on both purchase frequency and time since last purchase to separate "hasn't bought yet" from "gone forever."
+The saved nominal annual discounted revenue estimates average GBP143, with median GBP63.25 and total GBP357,493.42. The smallest top group reaching 80% of predicted value contains 755 customers, or 30.2%. These are modelled discounted revenues, not margin-adjusted profit or realised sales.
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/rfm_vs_clv_tension.png"
-    alt="Scatter plot of RFM M score versus predicted 12-month CLV coloured by channel"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    The tension plot: Deal-Seekers (red) cluster in the high-M / low-CLV quadrant. Enthusiasts (blue) sit at low M but high predicted CLV. Any decision ranked by M alone allocates budget in reverse order.
-  </figcaption>
-</figure>
+The horizon conversion also needs correction: the wrapper passes 365/30 as monthly time, which the inspected lifetimes v0.11.3 helper expands into 13 monthly steps reaching 390 days. The exact historical dependency version is not recorded. These should remain nominal annual estimates until endpoint and discount conventions are reconciled in a new version.
 
----
+![Modelled discounted revenue and model survival probabilities by generated channel label](outputs/channel_clv_comparison.png)
 
-## 4. BG/NBD model and holdout validation
+Synthetic scenario estimates under the current implementation. Mean values are GBP255.26 for Enthusiast, GBP121.12 for Mainstream and GBP48.60 for Deal-Seeker. Channel differences are planted in the generator and affected by the treatment of single-purchase customers.
 
-**Model.** `lifetimes.BetaGeoFitter` fit on a 20-month calibration window; validated on a 91-day holdout before any CLV numbers are quoted. Fitting and validating on the same data is a methodological error this project explicitly avoids. Fitted parameters: r = 0.71 (moderate purchase rate heterogeneity), α = 98.6 (slow baseline, expected for non-subscription retail), a = 0.21, b = 1.38 (mean dropout ≈ 13.4% per purchase).
+The implementation explicitly sets CLV to zero for customers without a repeat purchase. At the final scoring date this affects 684 customers. It is a chosen fallback policy, not a requirement that a single-purchase customer has no future value. BG/NBD can still predict positive future purchases for these records. A population-based spend or other cold-start treatment would need separate evaluation.
 
-**Holdout result.** MAE = **0.4745 purchases per customer** over the 91-day window. Bias = +0.035 (slight over-prediction). The model is not systematically wrong in a direction that distorts the channel-level ranking.
+Model P(alive) is also distinct from the proportion of customers exceeding a cutoff. Deal-Seekers have mean model P(alive) near 0.89; 92.7% have individual P(alive) above 0.5. Neither number measures observed loyalty. In particular, BG/NBD's treatment of zero-repeat histories contributes to high survival probabilities.
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/holdout_validation.png"
-    alt="Predicted versus actual purchases in holdout window with MAE by channel"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    Holdout validation: predicted vs actual per customer (left) and MAE by channel (right). Individual scatter is expected for a Poisson process; the channel-level comparison shows no systematic distortion.
-  </figcaption>
-</figure>
+## The campaign calculation needs a different target
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/bgnbd_matrices.png"
-    alt="BG/NBD expected purchases and P(alive) heatmaps over frequency and recency"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    BG/NBD matrices: expected purchases (left) and P(alive) (right) as a function of calibration frequency and recency. High-frequency / high-recency customers drive both, but "recently acquired with one purchase" (Deal-Seeker profile) looks alive because there has been no time to prove otherwise.
-  </figcaption>
-</figure>
+The illustrative campaign function multiplies mean CLV by the share with P(alive) above 0.5 and by assumed response rates of 18%, 9% and 4%, then subtracts an assumed GBP3.50 contact cost. The resulting +10.0, +1.61 and -0.49 scores are not validated ROI.
 
----
+CLV already integrates purchase survival through BG/NBD. Extra survival-related weighting can discount it again. More fundamentally, predicted customer revenue is not the incremental value caused by a campaign: there is no contacted-versus-uncontacted comparison, contribution-margin model or observed response effect.
 
-## 5. 12-month CLV and channel disaggregation
+The assumed GBP500,000 budget also exceeds the available one-contact population. Contacting all 2,500 generated customers once would cost GBP8,750. Contacting all Enthusiast and Mainstream records would cost GBP6,489 before eligibility filters. The notebook does not allocate a campaign budget. Incremental contribution, survival-based eligibility and contact treatment effects are not identified by this heuristic.
 
-**Population numbers.** Mean 12-month CLV £143, median £63.25, P90 £377. The mean exceeds median by 2.3×: the distribution is right-skewed. The top 18% of customers generate 80% of total predicted revenue.
+## What this project demonstrates
 
-**Channel breakdown.** Gamma-Gamma requires frequency > 0 (at least one repeat purchase). Customers with a single purchase get CLV = 0, correct model behaviour per specification.
+The supported contribution is an implemented workflow connecting generated transactions, customer summaries, fitted probabilistic models and a chronological purchase-count check. Auditing the complete chain also makes clear where a modelling convention or commercial assumption changes the story.
 
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/channel_clv_comparison.png"
-    alt="Violin plots of 12-month CLV and P(alive) distribution by acquisition channel"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    CLV violin plots by channel: Enthusiast median £180, Mainstream median £58, Deal-Seeker median £0. The Enthusiast advantage is broad-based, not driven by a few outliers at the tail.
-  </figcaption>
-</figure>
-
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/clv_distribution.png"
-    alt="12-month CLV histogram and P(alive) distribution for all customers"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    Population CLV distribution: right-skewed with a large mass near zero (single-purchase customers across all channels). P(alive) histogram is bimodal, customers are either reliably active or have gone.
-  </figcaption>
-</figure>
-
----
-
-## 6. Campaign ROI and the budget allocation
-
-**Model.** ROI per contact = (mean\_clv × P(alive) × response\_rate − £3.50) / £3.50. Response rates from channel behaviour: Enthusiast 18%, Mainstream 9%, Deal-Seeker 4%.
-
-**Results.** Enthusiast: **+10.0×** (every £3.50 contact returns £38.50 expected). Mainstream: **+1.61×** (positive, worth contacting). Deal-Seeker: **−0.49×** (each contact loses £1.70 net).
-
-<figure style={{ margin: "2rem 0", textAlign: "center" }}>
-  <Media
-    src="/images/projects/customer-lifetime-value/campaign_roi.png"
-    alt="Win-back campaign ROI by channel with expected return versus cost"
-    sizes="(max-width: 960px) 100vw, 960px"
-    enlarge
-    radius="m"
-    style={{ width: "100%", margin: "0 auto" }}
-  />
-  <figcaption style={{ fontSize: "1rem", color: "#888", marginTop: "0.5rem", textAlign: "center" }}>
-    Campaign ROI by channel: Enthusiast and Mainstream are positive; Deal-Seeker is negative. The red bar is not an inconclusive result, it is a clear exclusion signal.
-  </figcaption>
-</figure>
-
-### Insights from the pipeline
-
-- **P(alive) and CLV disagree for Deal-Seekers.** Deal-Seekers show 92.7% P(alive) but median CLV = £0. The BG/NBD model correctly reads recent short-tenure customers as "not demonstrably churned", but Gamma-Gamma correctly assigns zero spend to customers who never repeated. P(alive) measures survival; CLV measures economic consequence. You need both.
-- **The M score conflict is quantitative, not directional.** The tension plot is not just "M and CLV point different ways." Deal-Seekers score highest on M (largest historical spend) while ranking last on all three forward-looking metrics: retention, CLV, and campaign ROI. Any decision process that uses M without P(alive) filtering will systematically misallocate budget.
-- **Calibration/holdout split is not optional.** BG/NBD fitted on full data looks better on training-period diagnostics and worse on the future. The 91-day holdout is the only honest evaluation window. The MAE here (0.4745) is the number worth quoting; the in-sample fit is not.
-- **High AOV is not a substitute for repeat probability.** Deal-Seekers have the largest average order value among repeat buyers. Average transaction value alone is a seductive ranking criterion; BG/NBD × Gamma-Gamma shows it is the wrong one when churn probability is high.
-- **Guardrail breach from acquisition mix, not product.** Mainstream Month-1 retention (13%) also breaches the guardrail despite positive win-back ROI. The pipeline distinguishes the acquisition problem (who to stop paying to acquire) from the retention problem (who among existing customers to contact). They require different interventions.
-
-### Why this pattern shows up in industry
-
-Probabilistic CLV resolves the same conflict in every category where acquisition channels produce structurally different customer types: **subscription** businesses separating organic trials from heavy-discount cohorts; **e-commerce** distinguishing paid-social customers from brand-search customers; **financial services** tracking credit-card spend versus genuine product engagement; **gaming** separating paying users who purchased a launch bundle from those who spend routinely. The tension between historical spend and predicted lifetime value appears whenever the acquisition mechanism correlates with churn probability, which is most of the time.
-
-The BG/NBD + Gamma-Gamma stack is specifically designed for **non-contractual continuous** settings (customers can transact any time and leave silently). It makes no assumption about subscription or contract renewal; it infers "alive or gone" from the pattern of gaps in purchase history. That inference is what the M score cannot make, and what the win-back budget decision depends on.
+Further work would correct retention denominators, evaluate single-purchase value policies, diagnose model independence, validate future monetary outcomes and define incremental contribution from outreach. Any campaign allocation would then need explicit eligibility, contact limits, budget accounting and uncertainty. Until that work is executed and recorded, the saved campaign scores remain a hypothetical illustration rather than evidence of marketing returns.

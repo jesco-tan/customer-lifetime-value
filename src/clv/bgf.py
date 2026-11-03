@@ -1,7 +1,7 @@
 """BG/NBD purchase model + Gamma-Gamma spend model wrappers.
 
-Includes disaggregated CLV analysis by acquisition channel and campaign ROI
-estimation for the Thornbury & Co. win-back budget allocation decision.
+Includes descriptive channel aggregation and a hypothetical revenue-weighting
+heuristic. Neither predicts incremental campaign ROI or manages an actual budget.
 """
 
 from __future__ import annotations
@@ -31,7 +31,12 @@ def predict_clv(
     horizon_days: int = 365,
     discount_rate: float = 0.01,
 ) -> pd.DataFrame:
-    """Return summary with appended predicted_clv, predicted_purchases, prob_alive."""
+    """Append nominal annual discounted revenue, purchase count and model survival.
+
+    Nonrepeaters are assigned zero value by policy, not by a Gamma-Gamma theorem.
+    The fractional monthly horizon can expand to 390 days in lifetimes 0.11.3;
+    do not claim exact 365-day value without reconciling endpoint semantics.
+    """
     df = summary.copy()
 
     df["predicted_purchases"] = bgf.conditional_expected_number_of_purchases_up_to_time(
@@ -142,20 +147,18 @@ def holdout_comparison(
     return df
 
 
-def campaign_roi_by_channel(
+def campaign_heuristic_by_channel(
     clv_df: pd.DataFrame,
     channel_map: pd.Series,
     cost_per_contact: float,
     response_rates: dict[str, float],
 ) -> pd.DataFrame:
-    """Estimate win-back campaign ROI per channel.
+    """Illustrative revenue-weighting heuristic, not incremental campaign ROI.
 
-    ROI = (mean_clv * pct_alive * response_rate - cost_per_contact) / cost_per_contact
-    Positive ROI means each £1 spent returns more than £1 in predicted CLV.
-
-    Parameters
-    ----------
-    response_rates : dict mapping channel name → estimated response rate (0-1)
+    Multiplies mean value by the fraction above a survival cutoff and an assumed
+    response rate. Purchase predictions already integrate survival; extra
+    weighting may discount twice. No contacted/uncontacted effect is estimated.
+    This score cannot justify campaign allocation or exclusion.
     """
     channel_stats = clv_by_channel(clv_df, channel_map)
 
@@ -173,10 +176,21 @@ def campaign_roi_by_channel(
             "response_rate": rr,
             "mean_clv": row["mean_clv"],
             "pct_alive": row["pct_alive"],
-            "expected_return_per_contact": round(expected_return, 2),
+            "revenue_proxy_per_contact": round(expected_return, 2),
             "cost_per_contact": cost_per_contact,
             "net_per_contact": round(net_per_contact, 2),
-            "roi": round(roi, 2),
+            "heuristic_score": round(roi, 2),
         })
 
-    return pd.DataFrame(rows).sort_values("roi", ascending=False).reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values("heuristic_score", ascending=False).reset_index(drop=True)
+
+
+def campaign_roi_by_channel(*args, **kwargs):
+    """Deprecated compatibility alias returning labelled heuristic columns.
+
+    There is no ROI column because incremental returns are not identified.
+    """
+    import warnings
+    warnings.warn("Use campaign_heuristic_by_channel; this is not campaign ROI",
+                  DeprecationWarning, stacklevel=2)
+    return campaign_heuristic_by_channel(*args, **kwargs)

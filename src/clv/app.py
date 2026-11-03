@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUTS = ROOT / "outputs"
 
 st.set_page_config(page_title="Customer Lifetime Value Dashboard", layout="wide")
-st.title("Customer Lifetime Value & Cohort Analytics")
+st.title("Synthetic retailer customer analytics")
+st.info("Fictional generated customers. Values are discounted revenue estimates, not profit or campaign ROI. The exact forecast endpoint is unverified; nonrepeaters receive zero value by policy.")
+st.caption("Cohort summaries currently omit observed zero months. Count holdout validation does not validate future spend or campaign effects.")
 
 # ── Load outputs ──────────────────────────────────────────────────────────────
 
@@ -43,10 +45,10 @@ if summary is None:
 # ── KPI row ───────────────────────────────────────────────────────────────────
 clv_stats = summary.get("clv_stats", {})
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Mean 12-Month CLV", f"£{clv_stats.get('mean_clv', 0):,.2f}")
-col2.metric("Median 12-Month CLV", f"£{clv_stats.get('median_clv', 0):,.2f}")
+col1.metric("Mean nominal annual revenue", f"£{clv_stats.get('mean_clv', 0):,.2f}")
+col2.metric("Median nominal annual revenue", f"£{clv_stats.get('median_clv', 0):,.2f}")
 col3.metric("90th Pct CLV", f"£{clv_stats.get('p90_clv', 0):,.2f}")
-col4.metric("% Customers Likely Alive", f"{clv_stats.get('pct_alive', 0)}%")
+col4.metric("% with model P(alive) > 0.5", f"{clv_stats.get('pct_alive', 0)}%")
 
 st.divider()
 

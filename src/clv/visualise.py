@@ -46,6 +46,7 @@ def plot_retention_heatmap(
     ax.set_xlabel("Period Index (0 = acquisition cohort)")
     ax.set_ylabel("Acquisition Cohort")
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -62,7 +63,7 @@ def plot_clv_distribution(
     fig, axes = plt.subplots(1, 2, figsize=(13, 4))
 
     axes[0].hist(vals_capped, bins=50, color="#4472C4", edgecolor="white")
-    axes[0].set_title("12-Month CLV Distribution (99th pct cap)")
+    axes[0].set_title("Nominal annual revenue Distribution (99th pct cap)")
     axes[0].set_xlabel("Predicted CLV (£)")
     axes[0].set_ylabel("Customers")
     axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"£{x:,.0f}"))
@@ -74,6 +75,7 @@ def plot_clv_distribution(
     axes[1].set_ylabel("Customers")
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -90,6 +92,7 @@ def plot_segment_bar(
     ax.set_title("Revenue by RFM Segment")
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"£{x:,.0f}"))
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -111,6 +114,7 @@ def plot_umap_scatter(
     ax.set_ylabel("UMAP 2")
     ax.legend(markerscale=3, bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=8)
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -125,8 +129,8 @@ def plot_channel_clv_boxplot(
 ) -> plt.Figure:
     """Violin plot of predicted CLV by acquisition channel.
 
-    The Deal-Seeker violin sits near zero despite occasional high-AOV purchases,
-    illustrating why P(alive) is the critical moderator.
+    Nonrepeaters receive zero value by policy. This figure does not validate
+    customer worth, survival calibration or campaign effects.
     """
     df = clv_df.copy()
     df["Channel"] = df.index.map(channel_map)
@@ -155,7 +159,7 @@ def plot_channel_clv_boxplot(
         pc.set_alpha(0.7)
     axes[0].set_xticks(range(len(present)))
     axes[0].set_xticklabels(present)
-    axes[0].set_title("12-Month Predicted CLV by Channel (98th pct cap)")
+    axes[0].set_title("Nominal annual predicted revenue by Channel (98th pct cap)")
     axes[0].set_ylabel("Predicted CLV (£)")
     axes[0].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"£{x:,.0f}"))
 
@@ -171,6 +175,7 @@ def plot_channel_clv_boxplot(
     axes[1].text(0.51, axes[1].get_ylim()[1] * 0.9, "Alive threshold", fontsize=8)
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -184,9 +189,7 @@ def plot_rfm_vs_clv_tension(
 ) -> plt.Figure:
     """Scatter plot: RFM Monetary score (M) vs predicted CLV, coloured by channel.
 
-    The analytical tension lives here: Deal-Seekers cluster in the high-M /
-    low-CLV quadrant. A naive M-score ranking would prioritise the wrong segment
-    for win-back spend.
+    Compare summaries without assuming a rank inversion or campaign rule.
     """
     rfm = rfm_df.set_index("Customer ID") if "Customer ID" in rfm_df.columns else rfm_df
     clv = clv_df.copy()
@@ -218,8 +221,8 @@ def plot_rfm_vs_clv_tension(
             label=ch,
         )
     axes[0].set_xlabel("RFM Monetary Score (M, 1=lowest → 5=highest)")
-    axes[0].set_ylabel("Predicted 12-Month CLV (£)")
-    axes[0].set_title("The Tension: M Score vs Predicted CLV by Channel")
+    axes[0].set_ylabel("Predicted Nominal annual revenue (£)")
+    axes[0].set_title("Monetary Score vs Predicted Revenue by Generated Channel")
     axes[0].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"£{x:,.0f}"))
     axes[0].legend(markerscale=3)
 
@@ -246,6 +249,7 @@ def plot_rfm_vs_clv_tension(
     axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"£{x:,.0f}"))
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -301,6 +305,7 @@ def plot_month1_retention_by_channel(
             )
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -377,6 +382,7 @@ def plot_holdout_validation(
         axes[1].set_ylabel("Customers")
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -435,6 +441,7 @@ def plot_bgnbd_matrices(
     axes[1].set_title("P(Alive), Frequency vs Recency")
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
@@ -445,23 +452,23 @@ def plot_campaign_roi(
     guardrail: float = 0.0,
     save_path: Path | None = None,
 ) -> plt.Figure:
-    """Horizontal bar chart of estimated win-back campaign ROI by channel.
+    """Horizontal bar chart of a hypothetical revenue-weighting score.
 
-    Negative ROI bars are red; positive are green. Guardrail at ROI=0.
+    Negative scores are red; positive are green. This is not incremental ROI.
     """
-    df = roi_df.copy().sort_values("roi")
+    df = roi_df.copy().sort_values("heuristic_score")
     colours = [
         CHANNEL_COLOURS.get(c, "#888") if v >= guardrail else "#d7191c"
-        for c, v in zip(df["Channel"], df["roi"])
+        for c, v in zip(df["Channel"], df["heuristic_score"])
     ]
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 4))
 
-    bars = axes[0].barh(df["Channel"], df["roi"], color=colours, edgecolor="white")
+    bars = axes[0].barh(df["Channel"], df["heuristic_score"], color=colours, edgecolor="white")
     axes[0].axvline(0, color="black", linewidth=1)
-    axes[0].set_xlabel("Estimated ROI per Contact (£ return per £ spent)")
-    axes[0].set_title("Win-Back Campaign ROI by Channel")
-    for bar, val in zip(bars, df["roi"]):
+    axes[0].set_xlabel("Hypothetical heuristic score (not incremental ROI)")
+    axes[0].set_title("Synthetic campaign heuristic, not ROI")
+    for bar, val in zip(bars, df["heuristic_score"]):
         x = bar.get_width()
         axes[0].text(
             x + (0.05 if x >= 0 else -0.05),
@@ -470,15 +477,16 @@ def plot_campaign_roi(
             va="center", ha="left" if x >= 0 else "right", fontsize=10, fontweight="bold",
         )
 
-    axes[1].barh(df["Channel"], df["expected_return_per_contact"],
-                 color=colours, edgecolor="white", label="Expected Return")
+    axes[1].barh(df["Channel"], df["revenue_proxy_per_contact"],
+                 color=colours, edgecolor="white", label="Revenue proxy")
     axes[1].axvline(df["cost_per_contact"].iloc[0], color="black", linestyle="--",
                     linewidth=1.5, label=f"Cost per contact (£{df['cost_per_contact'].iloc[0]:.2f})")
     axes[1].set_xlabel("£ per Contact")
-    axes[1].set_title("Expected Return vs Cost per Contact")
+    axes[1].set_title("Revenue proxy vs Cost per Contact")
     axes[1].legend()
 
     plt.tight_layout()
+    fig.text(0.5, -0.02, "Synthetic retailer; modelled revenues, not campaign effects.", ha="center", fontsize=9)
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
