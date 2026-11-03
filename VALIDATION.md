@@ -1,9 +1,9 @@
-# Verification, 3 November 2026
+# Validation
 
-13 Python smoke tests passed, including explicitly labelled campaign heuristic columns. The saved CSV reconciles 2,500 records, 684 forced-zero nonrepeaters, GBP357,493.42 total predicted revenue and 755 customers to reach 80%. Three figures were redrawn from saved predictions and deterministic seed-42 labels, verified against 29,336 line items and 9,632 invoices. No BG/NBD or Gamma-Gamma model was refitted. Changed notebook code cells have cleared execution state.
+I checked observed-zero retention separately from unobserved months and tested the exact daily forecast endpoint and discount convention. All 18 Python tests passed, including an independent numerical-integration check of the purchase expectation.
 
-## Interpretation limits
+I evaluated purchase counts and realised revenue at three chronological forecast origins. The saved holdouts compare zero, population and shrinkage spend policies for single-purchase customers against a historical-rate/spend baseline. Individual predictions reconcile with the reported error metrics.
 
-The current results are synthetic demonstrations. Passing software checks does not validate real-world predictive performance, causality or business benefit.
+## Scope
 
-Retention currently omits observed zero cells, the exact value horizon needs reconciliation, and campaign incrementality is not identified. These limitations are explicit in the report and prevent stronger claims.
+The transactions are synthetic. The 90-day monetary holdouts do not validate a full annual forecast or identify incremental campaign returns. Fallback policies have different error and bias tradeoffs. See [REPORT.md](REPORT.md), `outputs/forecast_validation.csv` and `outputs/forecast_manifest.json` for the supported conclusions and reproduction.

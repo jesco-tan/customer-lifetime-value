@@ -1,0 +1,5 @@
+Channel,mean_month1_retention,median_month1_retention,n_cohorts,n_customers
+Deal-Seeker,0.0338,0.0254,12,646
+Enthusiast,0.3102,0.2929,12,757
+Mainstream,0.1295,0.1403,12,1097
+Overall,0.1612,0.1615,12,2500

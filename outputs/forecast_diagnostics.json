@@ -1,0 +1,20 @@
+[
+  {
+    "origin": "2011-03-01",
+    "training_population_invoice_mean": 122.00210088070456,
+    "frequency_spend_spearman": -0.08698073463536427,
+    "n": 2500
+  },
+  {
+    "origin": "2011-06-01",
+    "training_population_invoice_mean": 117.83755893843461,
+    "frequency_spend_spearman": -0.12176058054032611,
+    "n": 2500
+  },
+  {
+    "origin": "2011-09-01",
+    "training_population_invoice_mean": 114.89320276767914,
+    "frequency_spend_spearman": -0.13561065388813023,
+    "n": 2500
+  }
+]

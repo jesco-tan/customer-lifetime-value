@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "python": "3.14.5",
+  "parameters": {
+    "seed": 42,
+    "origins": [
+      "2011-03-01",
+      "2011-06-01",
+      "2011-09-01"
+    ],
+    "horizon": 90,
+    "shrinkage_strength": 5,
+    "penalizer": 0.001
+  },
+  "inputs": {
+    "src/clv/app.py": "430365b08bf6b0c779f0c573dc54e94d2ca2afd9cb1ffdd76c52219f453d9f9a",
+    "src/clv/bgf.py": "722b6b588a41327e6328c02df8bff9dbf0bad58a769726996798ab839838af4a",
+    "src/clv/cohorts.py": "57a7a87a088edf4cae512aa4a8ccc6c5344fba5d1787aea570c19534a043764f",
+    "src/clv/etl.py": "989ea4c7f74891420426a7140530213ce18fd9f328ed92e16ccdc4a97063580d",
+    "src/clv/rfm.py": "3e5dd9db46a2ead0022ae187abc9c6d5ac7234041c60c6c256bfb39845fdc669",
+    "src/clv/visualise.py": "ebb933f4b55c70b2d05458ffb6d8dd99ac1ff210d45d6e6c9d2d3d83b1871c13",
+    "src/clv/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scripts/validate_forecasts.py": "c634445f863cde8375b34d740d590645ca31f09b0fee16ffa5b1a2f7ca1f1c8f"
+  },
+  "packages": {
+    "autograd": "1.9.1",
+    "cloudpickle": "3.1.2",
+    "colorama": "0.4.6",
+    "contourpy": "1.4.0",
+    "cycler": "0.12.1",
+    "dill": "0.4.1",
+    "fonttools": "4.68.0",
+    "iniconfig": "2.3.1",
+    "joblib": "1.6.0",
+    "kiwisolver": "1.5.1",
+    "Lifetimes": "0.11.3",
+    "matplotlib": "3.11.2",
+    "narwhals": "2.28.0",
+    "numpy": "2.5.4",
+    "packaging": "26.3",
+    "pandas": "3.1.0",
+    "pillow": "13.0.0",
+    "pip": "26.1.1",
+    "pluggy": "1.7.0",
+    "Pygments": "2.21.0",
+    "pyparsing": "3.3.3",
+    "pytest": "9.2.0",
+    "python-dateutil": "4.0.0",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "seaborn": "0.13.2",
+    "threadpoolctl": "3.7.0",
+    "tzdata": "2026.6"
+  },
+  "outputs": {
+    "forecast_validation.csv": "3e349269c5b1166dd96c48701e4e678a49f7cf2268aad69dd9780ce77af22c3d",
+    "holdout_predictions.csv": "dc8be3137725c77afa7f6f1561440cccc90d5d8ba58436e64d12dd47836b1d9c",
+    "run_summary.json": "cdeade0d1dd053c949bb861203321fc9e6f6bf07431714984c4defcb8663ad51",
+    "clv_predictions.csv": "29a10629238f682f082692cb41bfdead25cb7f1ff8ec01044c9084022e8a79a4",
+    "retention.csv": "f0fae41103c8649f3374a8462ea979ed0ee7c70de14f2b628aa332b020d2fe9c"
+  },
+  "tolerance": "Metrics absolute 1e-6 with pinned packages. No interval claims. Synthetic results only."
+}

@@ -24,46 +24,53 @@ def fit_gamma_gamma(summary: pd.DataFrame, penalizer_coef: float = 0.001) -> Gam
     return ggf
 
 
+def expected_purchases(bgf, days, summary):
+    """Signed hypergeometric form of BG/NBD equation 10.
+
+    lifetimes 0.11.3 logs hyp2f1; when its value is negative this yields NaN
+    despite a finite positive expectation. Preserve its sign instead.
+    """
+    from scipy.special import hyp2f1
+    r, alpha, a, b = (float(bgf.params_[k]) for k in ("r","alpha","a","b"))
+    x=summary.frequency.to_numpy();T=summary["T"].to_numpy();rec=summary.recency.to_numpy()
+    if abs(a-1)<1e-8:
+        raise ValueError("BG/NBD a near 1 requires a limit calculation")
+    z=days/(alpha+T+days)
+    term=hyp2f1(r+x,b+x,a+b+x-1,z)*((alpha+T)/(alpha+T+days))**(r+x)
+    denom=1+np.where(x>0,a/(b+x-1)*((alpha+T)/(alpha+rec))**(r+x),0.)
+    result=(a+b+x-1)/(a-1)*(1-term)/denom
+    if not np.isfinite(result).all() or (result < -1e-8).any():
+        raise ValueError("Nonfinite or negative BG/NBD purchase prediction")
+    return np.maximum(result,0.)
+
+
 def predict_clv(
     bgf: BetaGeoFitter,
     ggf: GammaGammaFitter,
     summary: pd.DataFrame,
     horizon_days: int = 365,
     discount_rate: float = 0.01,
+    fallback_spend: pd.Series | float = 0.0,
 ) -> pd.DataFrame:
-    """Append nominal annual discounted revenue, purchase count and model survival.
+    """Exact daily discounted revenue for days 1..horizon_days inclusive.
 
-    Nonrepeaters are assigned zero value by policy, not by a Gamma-Gamma theorem.
-    The fractional monthly horizon can expand to 390 days in lifetimes 0.11.3;
-    do not claim exact 365-day value without reconciling endpoint semantics.
+    Monthly discount convention: (1 + discount_rate) ** (day / 30).
+    Spend fallback must be supplied from training data for non-zero policies.
     """
+    if not isinstance(horizon_days, int) or horizon_days <= 0 or discount_rate < 0:
+        raise ValueError("Positive integer days and nonnegative discount required")
     df = summary.copy()
-
-    df["predicted_purchases"] = bgf.conditional_expected_number_of_purchases_up_to_time(
-        horizon_days,
-        df["frequency"],
-        df["recency"],
-        df["T"],
-    )
-
-    df["prob_alive"] = bgf.conditional_probability_alive(
-        df["frequency"],
-        df["recency"],
-        df["T"],
-    )
-
-    repeat_mask = df["frequency"] > 0
-    df.loc[repeat_mask, "predicted_clv"] = ggf.customer_lifetime_value(
-        bgf,
-        df.loc[repeat_mask, "frequency"],
-        df.loc[repeat_mask, "recency"],
-        df.loc[repeat_mask, "T"],
-        df.loc[repeat_mask, "monetary_value"],
-        time=horizon_days / 30,
-        discount_rate=discount_rate,
-        freq="D",
-    )
-    df.loc[~repeat_mask, "predicted_clv"] = 0.0
+    cumulative = np.array([expected_purchases(bgf,day,df)
+        for day in range(horizon_days+1)])
+    increments = np.diff(cumulative,axis=0)
+    if not np.isfinite(increments).all() or (increments < -1e-7).any():
+        raise ValueError("Invalid purchase increments")
+    df["predicted_purchases"] = cumulative[-1]
+    df["prob_alive"] = bgf.conditional_probability_alive(df.frequency,df.recency,df["T"])
+    repeat = df.frequency > 0
+    spend = pd.Series(fallback_spend,index=df.index,dtype=float)
+    spend.loc[repeat] = ggf.conditional_expected_average_profit(df.loc[repeat,"frequency"],df.loc[repeat,"monetary_value"])
+    df["predicted_clv"] = (increments / (1 + discount_rate) ** (np.arange(1,horizon_days+1)[:,None]/30)).sum(axis=0) * spend
 
     return df
 

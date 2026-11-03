@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 
-def build_retention_matrix(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
+def build_retention_matrix(df: pd.DataFrame, freq: str = "M", observation_end=None) -> pd.DataFrame:
     """
     Build a cohort × period retention matrix.
 
@@ -27,7 +27,15 @@ def build_retention_matrix(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
     df["period_index"] = (df["period"] - df["cohort"]).apply(lambda x: x.n)
     cohort_sizes = df.groupby("cohort")["Customer ID"].nunique()
     retention_counts = df.groupby(["cohort", "period_index"])["Customer ID"].nunique()
-    retention = retention_counts.unstack("period_index").divide(cohort_sizes, axis=0)
+    end = pd.Timestamp(observation_end if observation_end is not None else df.InvoiceDate.max()).to_period(freq)
+    if end < df.period.max():
+        raise ValueError("Observation end precedes a transaction")
+    max_age = max((end - c).n for c in cohort_sizes.index)
+    retention = retention_counts.unstack("period_index").reindex(columns=range(max_age+1)).divide(cohort_sizes, axis=0)
+    for cohort in retention.index:
+        observed = (end - cohort).n
+        retention.loc[cohort, :observed] = retention.loc[cohort, :observed].fillna(0)
+        retention.loc[cohort, observed+1:] = np.nan
     return retention
 
 
@@ -60,7 +68,7 @@ def retention_by_channel(
 
     result: dict[str, pd.DataFrame] = {}
     for channel, grp in df.groupby("Channel"):
-        result[str(channel)] = build_retention_matrix(grp, freq=freq)
+        result[str(channel)] = build_retention_matrix(grp, freq=freq, observation_end=df.InvoiceDate.max())
     return result
 
 
@@ -79,7 +87,7 @@ def month1_retention_summary(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
     rows = []
 
     def _month1(sub_df: pd.DataFrame) -> dict:
-        ret = build_retention_matrix(sub_df, freq=freq)
+        ret = build_retention_matrix(sub_df, freq=freq, observation_end=df.InvoiceDate.max())
         if 1 not in ret.columns:
             return {"mean": np.nan, "median": np.nan, "n_cohorts": 0}
         col = ret[1].dropna()

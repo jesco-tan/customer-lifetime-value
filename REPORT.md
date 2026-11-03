@@ -1,63 +1,52 @@
-# Customer analytics on a synthetic retailer: cohorts, RFM and probabilistic value
+# Customer value: exact horizons and monetary holdouts
 
-Evidence interpretation revised 3 November 2026. Results describe the saved synthetic demonstration, not real-world outcomes. Numerical inputs and model estimates were not refitted for this narrative revision.
+Executed 3 November 2026 on 2,500 synthetic customers. Currency values are generated GBP revenue, not profit, causal impact or campaign ROI.
 
-Thornbury & Co. is a fictional retailer scenario. I built a customer-analytics workflow using 2,500 generated customers, 9,632 invoices and 29,336 invoice line items. It includes RFM segmentation, cohort summaries, BG/NBD purchase predictions, a Gamma-Gamma spend model and a separate purchase-count holdout.
+## Forecast and retention conventions
 
-The data are synthetic, not a real retailer's transaction log. The GBP500,000 budget, contact cost and response rates are assumed scenario inputs. No campaign budget was managed and no campaign returns were observed.
+The forecast sums daily expected purchase increments over days 1 through 365 inclusive. Monthly discount rate 1% means each day d is discounted by `(1.01)^(d/30)`. It never calls the lifetimes monthly CLV helper, which could extend a fractional-month horizon. Daily purchase counts, rather than invoice line items, are the count target.
 
-## What the generator assumes
+Cohort retention includes observed months with no returning customers as zero. Future unobserved months remain missing. All channels use the same observation endpoint. Partial terminal months are included through the final observation date and should not be interpreted as complete-month estimates.
 
-The generator assigns Enthusiast, Mainstream and Deal-Seeker labels, with different engagement distributions and parameters. A shared engagement variable drives purchase rates, basket sizes and dropout. This intentionally creates channel differences; the model does not discover causal effects of organic, search or flash-sale acquisition.
+![Retention with observed zeros](outputs/retention_heatmap.png)
 
-An optional UCI Online Retail II loader exists, but the executed notebook records that its input file was absent and uses synthetic seed 42. The named channel results therefore belong to the generated scenario.
+## Chronological validation
 
-## Historical customer summaries
+Three origins were specified before comparison: 1 March, 1 June and 1 September 2011, each followed by a nonoverlapping 90-day holdout. Each origin refits both BG/NBD and Gamma-Gamma using training records only. The same customers can occur at multiple origins, so origins are not independent samples. Holdout revenue is undiscounted realised transaction revenue, and is tested separately from purchase counts. New customers acquired after an origin are excluded.
 
-RFM separates recency, purchase frequency and historical spend. In the saved notebook, Enthusiasts have the highest mean Monetary score, 3.55, compared with 2.79 for Deal-Seekers and 2.74 for Mainstream. Enthusiasts also have the highest predicted CLV. This run does not show a full inversion of the channel rankings.
+For single-purchase customers, compare zero value, training population invoice-mean spend and shrinkage of individual invoice spend toward that mean with a fixed five-invoice prior. Repeat customers use Gamma-Gamma spend. The historical baseline uses observed daily purchase rate times 90 and customer mean invoice spend. Reporting uses the population fallback, specified before comparison; it is not selected as the holdout winner.
 
-![Historical Monetary scores and predicted value for generated customer records](outputs/rfm_vs_clv_tension.png)
+| Origin | Policy | Count MAE | Revenue MAE | Revenue bias | Revenue RMSE |
+| --- | --- | --- | --- | --- | --- |
+| 2011-03-01 | zero | 0.5471 | 56.1504 | -5.1450 | 122.7310 |
+| 2011-03-01 | population | 0.5471 | 64.2949 | 6.8823 | 121.2198 |
+| 2011-03-01 | shrinkage | 0.5471 | 65.9504 | 8.8161 | 121.4586 |
+| 2011-03-01 | historical_rate_spend | 0.8492 | 129.0563 | 90.0762 | 211.6511 |
+| 2011-06-01 | zero | 0.5052 | 52.0894 | -2.7590 | 109.1037 |
+| 2011-06-01 | population | 0.5052 | 57.0265 | 4.2358 | 108.2183 |
+| 2011-06-01 | shrinkage | 0.5052 | 58.2478 | 5.5981 | 108.2361 |
+| 2011-06-01 | historical_rate_spend | 0.7051 | 97.9563 | 59.3728 | 147.5557 |
+| 2011-09-01 | zero | 0.4696 | 51.0826 | -1.3018 | 102.7034 |
+| 2011-09-01 | population | 0.4696 | 54.5293 | 3.3914 | 101.9257 |
+| 2011-09-01 | shrinkage | 0.4696 | 55.4786 | 4.4702 | 101.9456 |
+| 2011-09-01 | historical_rate_spend | 0.6373 | 85.9558 | 46.5835 | 128.3489 |
 
-Synthetic retailer scenario. The scatter compares different customer summaries, but it does not show the claimed full channel-rank inversion. Saved mean Monetary and predicted CLV both rank Enthusiasts highest.
+Zero-spend fallback has the lowest overall revenue MAE at all three origins. Population and shrinkage fallbacks reduce the single-purchase group's downward bias and RMSE, while increasing MAE. No fallback wins on every metric. All three BG/NBD-based forecasts outperform this historical-rate baseline on count MAE and overall revenue MAE in these synthetic windows. This is not evidence of accuracy on a real retailer.
 
-The saved cohort implementation reports mean month-1 rates of 31.02%, 12.95% and 4.51% across Enthusiast, Mainstream and Deal-Seeker cohorts, against an assumed 20% floor. These are averages over available cohort cells. The current implementation omits months with no repeat purchasers instead of retaining observed zeros, so denominator handling needs correction before substantive interpretation. These are not measured acquisition or retention efficiencies.
+`forecast_validation.csv` reports MAE, bias and RMSE for all customers, repeat and single-purchase customers, and all three acquisition channels. `holdout_predictions.csv` allows independent reconciliation. `forecast_diagnostics.json` reports training frequency/spend correlation: the generator couples frequency and spend, so Gamma-Gamma independence is questionable.
 
-## Fitted models and a chronological holdout
+## Numerical reliability
 
-The notebook fits BG/NBD on records through 9 September 2011 and fits Gamma-Gamma on the 1,714 repeat customers in that calibration period. The following 91 days, through 9 December 2011, provide a separate purchase-count holdout. Saved holdout MAE is 0.4745 purchases per generated customer and signed bias is +0.0348.
+The March fit exposed a lifetimes 0.11.3 numerical issue: its logarithm of a negative hypergeometric value returned missing predictions for single-purchase customers. The implementation now evaluates the signed expression directly and fails on nonfinite or negative predictions. Independent numerical integration verifies the expression in a regression test. Validation refuses missing predictions, preventing pandas means from silently excluding affected customers. Parameters with a near one fail explicitly pending a limit calculation.
 
-![Saved purchase-count holdout diagnostics for the synthetic retailer](outputs/holdout_validation.png)
+## Final forecast
 
-Synthetic retailer scenario. The notebook reports full-population holdout MAE 0.4745 and bias +0.0348. This figure trims customers above the 98th percentile of actual holdout purchases before plotting and calculating its displayed diagnostics. Purchase-count validation does not validate campaign incrementality or future spend.
+Final models are refitted through 9 December 2011 before forecasting days 1..365. The population-spend fallback uses this final training set only. See `clv_predictions.csv` and `run_summary.json` for values. These beyond-window values are not observed outcomes; the 90-day monetary holdouts do not directly validate an annual forecast.
 
-This time separation is an implemented validation achievement. It does not resolve every model assumption. The generator deliberately relates purchase frequency, spend and dropout through shared engagement, while standard BG/NBD and Gamma-Gamma specifications make independence assumptions about those quantities. Those assumptions need explicit checks and comparison with alternative models.
+![Exact 365-day discounted revenue distribution](outputs/clv_distribution.png)
 
-Final value estimates use histories through 9 December 2011 and forecast beyond that date, using parameters fitted earlier. They are distinct from the September-origin purchase-count holdout and do not have a saved monetary holdout validation.
+## Reproduce
 
-## What the saved CLV estimates mean
+On Python 3.14: create `.venv`, install `requirements.txt`, run `.venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider`, then `.venv/Scripts/python.exe scripts/validate_forecasts.py` and `python scripts/generate_html_report.py`. The manifest records hashes, seeds, origins and package versions. Metrics allow absolute tolerance 1e-6 with pinned dependencies.
 
-The saved nominal annual discounted revenue estimates average GBP143, with median GBP63.25 and total GBP357,493.42. The smallest top group reaching 80% of predicted value contains 755 customers, or 30.2%. These are modelled discounted revenues, not margin-adjusted profit or realised sales.
-
-The horizon conversion also needs correction: the wrapper passes 365/30 as monthly time, which the inspected lifetimes v0.11.3 helper expands into 13 monthly steps reaching 390 days. The exact historical dependency version is not recorded. These should remain nominal annual estimates until endpoint and discount conventions are reconciled in a new version.
-
-![Modelled discounted revenue and model survival probabilities by generated channel label](outputs/channel_clv_comparison.png)
-
-Synthetic scenario estimates under the current implementation. Mean values are GBP255.26 for Enthusiast, GBP121.12 for Mainstream and GBP48.60 for Deal-Seeker. Channel differences are planted in the generator and affected by the treatment of single-purchase customers.
-
-The implementation explicitly sets CLV to zero for customers without a repeat purchase. At the final scoring date this affects 684 customers. It is a chosen fallback policy, not a requirement that a single-purchase customer has no future value. BG/NBD can still predict positive future purchases for these records. A population-based spend or other cold-start treatment would need separate evaluation.
-
-Model P(alive) is also distinct from the proportion of customers exceeding a cutoff. Deal-Seekers have mean model P(alive) near 0.89; 92.7% have individual P(alive) above 0.5. Neither number measures observed loyalty. In particular, BG/NBD's treatment of zero-repeat histories contributes to high survival probabilities.
-
-## The campaign calculation needs a different target
-
-The illustrative campaign function multiplies mean CLV by the share with P(alive) above 0.5 and by assumed response rates of 18%, 9% and 4%, then subtracts an assumed GBP3.50 contact cost. The resulting +10.0, +1.61 and -0.49 scores are not validated ROI.
-
-CLV already integrates purchase survival through BG/NBD. Extra survival-related weighting can discount it again. More fundamentally, predicted customer revenue is not the incremental value caused by a campaign: there is no contacted-versus-uncontacted comparison, contribution-margin model or observed response effect.
-
-The assumed GBP500,000 budget also exceeds the available one-contact population. Contacting all 2,500 generated customers once would cost GBP8,750. Contacting all Enthusiast and Mainstream records would cost GBP6,489 before eligibility filters. The notebook does not allocate a campaign budget. Incremental contribution, survival-based eligibility and contact treatment effects are not identified by this heuristic.
-
-## What this project demonstrates
-
-The supported contribution is an implemented workflow connecting generated transactions, customer summaries, fitted probabilistic models and a chronological purchase-count check. Auditing the complete chain also makes clear where a modelling convention or commercial assumption changes the story.
-
-Further work would correct retention denominators, evaluate single-purchase value policies, diagnose model independence, validate future monetary outcomes and define incremental contribution from outreach. Any campaign allocation would then need explicit eligibility, contact limits, budget accounting and uncertainty. Until that work is executed and recorded, the saved campaign scores remain a hypothetical illustration rather than evidence of marketing returns.
+Campaign weighting remains an illustrative helper outside the main analysis. Incremental returns require treatment/control response data. Previous charts not referenced here are historical artifacts and do not describe this rerun; current report figures are retention_heatmap.png and clv_distribution.png.

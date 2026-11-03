@@ -1,86 +1,23 @@
 {
-  "scenario": "Thornbury & Co.",
+  "data_source": "synthetic",
+  "seed": 42,
   "n_customers": 2500,
-  "n_transactions": 29336,
-  "n_invoices": 9632,
-  "observation_end": "2011-12-09",
-  "calibration_end": "2011-09-09",
-  "holdout_days": 91,
+  "forecast_days": 365,
+  "discount": "Daily increments discounted by (1.01)^(day/30), days 1..365",
+  "reporting_fallback": "training population invoice mean; specified before holdout comparison",
   "clv_stats": {
-    "mean_clv": 143,
-    "median_clv": 63.25,
-    "p90_clv": 376.9,
-    "total_predicted_revenue": 357493.42,
-    "pct_alive": 86.1
+    "mean_clv": 145.76,
+    "median_clv": 59.0,
+    "p90_clv": 351.68,
+    "total_predicted_revenue": 364398.27,
+    "pct_alive": 85.4
   },
-  "holdout_mae": 0.4745,
-  "holdout_bias": 0.0348,
-  "month1_retention_overall": 0.1612,
-  "guardrail_threshold": 0.2,
-  "guardrail_breached": true,
-  "n_segments": 11,
-  "top_segment_by_revenue": "Loyal Customers",
-  "bgnbd_params": {
-    "r": 0.7083,
-    "alpha": 98.6269,
-    "a": 0.2118,
-    "b": 1.3753
-  },
-  "channel_clv": {
-    "Deal-Seeker": {
-      "n_customers": 646,
-      "mean_clv": 48.6,
-      "median_clv": 0,
-      "p90_clv": 155.73,
-      "total_clv": 31394.41,
-      "mean_prob_alive": 0.89,
-      "pct_alive": 92.7
-    },
-    "Enthusiast": {
-      "n_customers": 757,
-      "mean_clv": 255.26,
-      "median_clv": 179.74,
-      "p90_clv": 592.28,
-      "total_clv": 193234.35,
-      "mean_prob_alive": 0.77,
-      "pct_alive": 83.8
-    },
-    "Mainstream": {
-      "n_customers": 1097,
-      "mean_clv": 121.12,
-      "median_clv": 58.28,
-      "p90_clv": 313.78,
-      "total_clv": 132864.65,
-      "mean_prob_alive": 0.76,
-      "pct_alive": 83.8
-    }
-  },
-  "month1_retention_by_channel": {
-    "Deal-Seeker": 0.0451,
-    "Enthusiast": 0.3102,
-    "Mainstream": 0.1295,
-    "Overall": 0.1612
-  },
-  "schema_version": 2,
-  "evidence_status": "synthetic demonstration; narrative and field definitions corrected 2026-11-03; no model refit",
-  "campaign_heuristic_by_channel": {
-    "Enthusiast": {
-      "net_per_contact": 35,
-      "heuristic_score": 10,
-      "revenue_proxy_per_contact": 38.5
-    },
-    "Mainstream": {
-      "net_per_contact": 5.63,
-      "heuristic_score": 1.61,
-      "revenue_proxy_per_contact": 9.13
-    },
-    "Deal-Seeker": {
-      "net_per_contact": -1.7,
-      "heuristic_score": -0.49,
-      "revenue_proxy_per_contact": 1.8
-    }
-  },
-  "value_target": "nominal annual discounted revenue; exact executed horizon not verified",
-  "retention_definition": "unweighted mean of available cohort cells; observed zeros omitted by current implementation",
-  "single_purchase_value_policy": "forced zero"
+  "validation_origins": [
+    "2011-03-01",
+    "2011-06-01",
+    "2011-09-01"
+  ],
+  "holdout_days": 90,
+  "validation_target": "undiscounted revenue and daily purchase counts, existing customers only",
+  "origins_overlap": false
 }
